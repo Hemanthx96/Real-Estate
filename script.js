@@ -78,30 +78,73 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Stats counter animation
     const statNumbers = document.querySelectorAll('.stat-number');
-    const statsObserver = new IntersectionObserver(function(entries) {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && !entry.target.classList.contains('counted')) {
-                entry.target.classList.add('counted');
-                const target = parseInt(entry.target.getAttribute('data-target'));
-                const duration = 2000;
-                const increment = target / (duration / 16);
-                let current = 0;
+    
+    if (statNumbers.length > 0) {
+        const statsObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !entry.target.classList.contains('counted')) {
+                    entry.target.classList.add('counted');
+                    const target = parseInt(entry.target.getAttribute('data-target'));
+                    
+                    if (isNaN(target)) return;
+                    
+                    const duration = 2000;
+                    const increment = target / (duration / 16);
+                    let current = 0;
+                    const showPlus = target >= 10;
 
-                const timer = setInterval(() => {
-                    current += increment;
-                    if (current >= target) {
-                        entry.target.textContent = target + (target >= 10 ? '+' : '');
-                        clearInterval(timer);
-                    } else {
-                        entry.target.textContent = Math.floor(current) + (target >= 10 ? '+' : '');
-                    }
-                }, 16);
-            }
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= target) {
+                            entry.target.textContent = target + (showPlus ? '+' : '');
+                            clearInterval(timer);
+                        } else {
+                            entry.target.textContent = Math.floor(current);
+                        }
+                    }, 16);
+                }
+            });
+        }, { 
+            threshold: 0.2,
+            rootMargin: '0px 0px -100px 0px'
         });
-    }, { threshold: 0.5 });
 
-    statNumbers.forEach(stat => {
-        statsObserver.observe(stat);
-    });
+        statNumbers.forEach(stat => {
+            statsObserver.observe(stat);
+        });
+
+        // Fallback: If stats section is already visible on load, trigger animation after a short delay
+        setTimeout(() => {
+            const statsSection = document.querySelector('.stats');
+            if (statsSection) {
+                const rect = statsSection.getBoundingClientRect();
+                const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+                if (isVisible) {
+                    statNumbers.forEach(stat => {
+                        if (!stat.classList.contains('counted')) {
+                            const target = parseInt(stat.getAttribute('data-target'));
+                            if (!isNaN(target)) {
+                                stat.classList.add('counted');
+                                const showPlus = target >= 10;
+                                const duration = 2000;
+                                const increment = target / (duration / 16);
+                                let current = 0;
+
+                                const timer = setInterval(() => {
+                                    current += increment;
+                                    if (current >= target) {
+                                        stat.textContent = target + (showPlus ? '+' : '');
+                                        clearInterval(timer);
+                                    } else {
+                                        stat.textContent = Math.floor(current);
+                                    }
+                                }, 16);
+                            }
+                        }
+                    });
+                }
+            }
+        }, 500);
+    }
 });
 
