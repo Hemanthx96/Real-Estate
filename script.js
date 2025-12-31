@@ -64,6 +64,81 @@ const observer = new IntersectionObserver(function(entries) {
     });
 }, observerOptions);
 
+// Stats counter animation function
+function animateStat(statElement) {
+    if (statElement.classList.contains('counted')) return;
+    
+    statElement.classList.add('counted');
+    const target = parseInt(statElement.getAttribute('data-target'));
+    
+    if (isNaN(target) || target === 0) return;
+    
+    const duration = 2000;
+    const increment = target / (duration / 16);
+    let current = 0;
+    const showPlus = target >= 10;
+
+    const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+            statElement.textContent = target + (showPlus ? '+' : '');
+            clearInterval(timer);
+        } else {
+            statElement.textContent = Math.floor(current);
+        }
+    }, 16);
+}
+
+// Stats counter initialization
+function initStatsCounter() {
+    const statNumbers = document.querySelectorAll('.stat-number');
+    
+    if (statNumbers.length === 0) {
+        // Retry after a short delay if elements aren't found yet
+        setTimeout(initStatsCounter, 100);
+        return;
+    }
+
+    const statsSection = document.querySelector('.stats');
+    
+    // Check if stats section is visible on page load
+    const checkVisibility = () => {
+        if (!statsSection) return false;
+        const rect = statsSection.getBoundingClientRect();
+        const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+        return rect.top < windowHeight && rect.bottom > 0;
+    };
+
+    // Always set up IntersectionObserver as backup
+    const statsObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateStat(entry.target);
+                // Stop observing once animated
+                statsObserver.unobserve(entry.target);
+            }
+        });
+    }, { 
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    // Start observing all stats
+    statNumbers.forEach(stat => {
+        statsObserver.observe(stat);
+        
+        // Also check immediately if already visible
+        if (checkVisibility()) {
+            // Use requestAnimationFrame to ensure DOM is fully rendered
+            requestAnimationFrame(() => {
+                if (checkVisibility() && !stat.classList.contains('counted')) {
+                    animateStat(stat);
+                }
+            });
+        }
+    });
+}
+
 // Observe service cards and contact items
 document.addEventListener('DOMContentLoaded', function() {
     const serviceCards = document.querySelectorAll('.service-card');
@@ -76,75 +151,23 @@ document.addEventListener('DOMContentLoaded', function() {
         observer.observe(item);
     });
 
-    // Stats counter animation
+    // Initialize stats counter
+    initStatsCounter();
+});
+
+// Also try initializing on window load as a fallback
+window.addEventListener('load', function() {
     const statNumbers = document.querySelectorAll('.stat-number');
-    
-    if (statNumbers.length > 0) {
-        const statsObserver = new IntersectionObserver(function(entries) {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && !entry.target.classList.contains('counted')) {
-                    entry.target.classList.add('counted');
-                    const target = parseInt(entry.target.getAttribute('data-target'));
-                    
-                    if (isNaN(target)) return;
-                    
-                    const duration = 2000;
-                    const increment = target / (duration / 16);
-                    let current = 0;
-                    const showPlus = target >= 10;
-
-                    const timer = setInterval(() => {
-                        current += increment;
-                        if (current >= target) {
-                            entry.target.textContent = target + (showPlus ? '+' : '');
-                            clearInterval(timer);
-                        } else {
-                            entry.target.textContent = Math.floor(current);
-                        }
-                    }, 16);
-                }
-            });
-        }, { 
-            threshold: 0.2,
-            rootMargin: '0px 0px -100px 0px'
-        });
-
-        statNumbers.forEach(stat => {
-            statsObserver.observe(stat);
-        });
-
-        // Fallback: If stats section is already visible on load, trigger animation after a short delay
-        setTimeout(() => {
+    statNumbers.forEach(stat => {
+        if (!stat.classList.contains('counted')) {
             const statsSection = document.querySelector('.stats');
             if (statsSection) {
                 const rect = statsSection.getBoundingClientRect();
-                const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-                if (isVisible) {
-                    statNumbers.forEach(stat => {
-                        if (!stat.classList.contains('counted')) {
-                            const target = parseInt(stat.getAttribute('data-target'));
-                            if (!isNaN(target)) {
-                                stat.classList.add('counted');
-                                const showPlus = target >= 10;
-                                const duration = 2000;
-                                const increment = target / (duration / 16);
-                                let current = 0;
-
-                                const timer = setInterval(() => {
-                                    current += increment;
-                                    if (current >= target) {
-                                        stat.textContent = target + (showPlus ? '+' : '');
-                                        clearInterval(timer);
-                                    } else {
-                                        stat.textContent = Math.floor(current);
-                                    }
-                                }, 16);
-                            }
-                        }
-                    });
+                if (rect.top < window.innerHeight && rect.bottom > 0) {
+                    animateStat(stat);
                 }
             }
-        }, 500);
-    }
+        }
+    });
 });
 
